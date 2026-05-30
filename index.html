@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hudson Schooling Corporation Virtual LMS Version 2.0</title>
+<link rel="icon" href="HSC Logo.jpg">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js"></script>
+<style>
+:root{
+--blue:#0A4DBA;--mint:#A4E0C5;--dark:#0F1729;
+}
+*{box-sizing:border-box;font-family:Segoe UI,sans-serif}
+body{
+margin:0;color:white;
+background:linear-gradient(rgba(10,20,40,.75),rgba(10,20,40,.92)),url("HSC VLMS Background.jpg");
+background-size:cover;background-position:center;background-attachment:fixed;
+}
+header{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;background:rgba(0,0,0,.35);backdrop-filter:blur(10px)}
+.logo{display:flex;align-items:center;gap:12px}
+.logo img{width:64px;height:64px;border-radius:10px}
+.container{padding:24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.card{background:rgba(255,255,255,.08);padding:20px;border-radius:16px;backdrop-filter:blur(10px)}
+button{background:var(--blue);color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer}
+.item{background:rgba(255,255,255,.06);padding:10px;border-radius:8px;margin:8px 0}
+</style>
+</head>
+<body>
+<header>
+<div class="logo">
+<img src="HSC Logo.jpg" alt="logo">
+<div>
+<h2>Hudson Schooling Corporation</h2>
+<div>Virtual LMS Version 2.0</div>
+</div>
+</div>
+<div>
+<button id="loginBtn">Google Sign-In</button>
+</div>
+</header>
+
+<div class="container">
+<div class="card">
+<h2>Status</h2>
+<div id="status">Not Connected</div>
+</div>
+<br>
+<div class="grid">
+<div class="card"><h3>Courses</h3><div id="coursesContainer">No courses loaded.</div></div>
+<div class="card"><h3>Assignments</h3><div id="assignmentsContainer">Select a course.</div></div>
+<div class="card"><h3>Announcements</h3><div id="announcementsContainer">Select a course.</div></div>
+<div class="card"><h3>Gradebook</h3><div id="gradebookContainer">Select a course.</div></div>
+</div>
+</div>
+
+<script>
+const CLIENT_ID="693328102745-2fkq8hbpbr2lr2qiknoib7mbc10l7q0c.apps.googleusercontent.com";
+const API_KEY="AIzaSyC_IllJCmaScgDcXtR7WYTklpwBzJddQzs";
+const DISCOVERY_DOC="https://classroom.googleapis.com/$discovery/rest?version=v1";
+const SCOPES=[
+"https://www.googleapis.com/auth/classroom.courses.readonly",
+"https://www.googleapis.com/auth/classroom.coursework.me.readonly",
+"https://www.googleapis.com/auth/classroom.student-submissions.me.readonly",
+"https://www.googleapis.com/auth/classroom.announcements.readonly"
+].join(" ");
+
+let tokenClient;
+
+gapi.load("client", async ()=>{
+  await gapi.client.init({apiKey:API_KEY, discoveryDocs:[DISCOVERY_DOC]});
+});
+
+window.addEventListener("load", ()=>{
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID,
+    scope:SCOPES,
+    callback:()=>{
+      document.getElementById("status").textContent="Connected";
+      loadCourses();
+    }
+  });
+});
+
+document.getElementById("loginBtn").onclick=()=>tokenClient.requestAccessToken();
+
+async function loadCourses(){
+ try{
+  const r=await gapi.client.classroom.courses.list();
+  const courses=r.result.courses||[];
+  const c=document.getElementById("coursesContainer");
+  c.innerHTML="";
+  courses.forEach(course=>{
+    const d=document.createElement("div");
+    d.className="item";
+    d.textContent=course.name;
+    d.onclick=()=>{
+      loadAssignments(course.id);
+      loadAnnouncements(course.id);
+    };
+    c.appendChild(d);
+  });
+ }catch(e){console.error(e);}
+}
+
+async function loadAssignments(courseId){
+ const box=document.getElementById("assignmentsContainer");
+ box.innerHTML="";
+ try{
+  const r=await gapi.client.classroom.courses.courseWork.list({courseId});
+  (r.result.courseWork||[]).forEach(w=>{
+   box.innerHTML+=`<div class="item"><b>${w.title}</b><br><a href="${w.alternateLink}" target="_blank">Open / Turn In</a></div>`;
+  });
+ }catch(e){console.error(e);}
+}
+
+async function loadAnnouncements(courseId){
+ const box=document.getElementById("announcementsContainer");
+ box.innerHTML="";
+ try{
+  const r=await gapi.client.classroom.courses.announcements.list({courseId});
+  (r.result.announcements||[]).forEach(a=>{
+   box.innerHTML+=`<div class="item">${a.text||"Announcement"}</div>`;
+  });
+ }catch(e){console.error(e);}
+}
+</script>
+</body>
+</html>
